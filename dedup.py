@@ -1,7 +1,7 @@
 from difflib import SequenceMatcher
 
 
-SIMILARITY_THRESHOLD = 0.78
+SIMILARITY_THRESHOLD = 0.85
 
 
 def _normalize(title: str) -> str:

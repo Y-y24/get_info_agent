@@ -21,11 +21,11 @@ def test_exact_url_dedup():
 def test_similar_title_dedup():
     items = [
         make_item(
-            "Deep Learning for Image Recognition",
+            "Breaking: Major AI Breakthrough Announced Today — Experts Weigh In",
             "http://a.com/1",
         ),
         make_item(
-            "Deep Learning for Image Recognition and Classification",
+            "Breaking: Major AI Breakthrough Announced Today – Experts Weigh In",
             "http://b.com/2",
         ),
     ]
