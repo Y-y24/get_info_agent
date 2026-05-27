@@ -1,0 +1,19 @@
+academic:
+  arxiv_categories: ["cs.AI", "cs.CL", "cs.CV", "cs.LG", "eess.SP"]
+  keywords: []
+
+tech:
+  sources: ["hackernews", "github_trending", "paperswithcode"]
+
+news:
+  sources: ["weibo", "zhihu", "36kr"]
+
+email:
+  smtp_host: "smtp.qq.com"
+  smtp_port: 587
+  from_address: "3165086034@qq.com"
+  to_address: "3165086034@qq.com"
+
+deepseek:
+  model: "deepseek-chat"
+  max_tokens_per_item: 80
