@@ -4,6 +4,41 @@ academic:
 
 tech:
   sources: ["hackernews", "github_trending", "paperswithcode"]
+  keywords:
+    # AI/ML
+    - "AI"
+    - "machine learning"
+    - "deep learning"
+    - "neural network"
+    - "transformer"
+    - "LLM"
+    - "GPT"
+    - "reinforcement learning"
+    - "NLP"
+    - "computer vision"
+    - "generative"
+    - "diffusion"
+    - "large language model"
+    - "fine-tuning"
+    # CS/SE
+    - "algorithm"
+    - "compiler"
+    - "programming language"
+    - "operating system"
+    - "database"
+    - "distributed system"
+    - "open source"
+    # EE/Semiconductor
+    - "semiconductor"
+    - "chip"
+    - "VLSI"
+    - "FPGA"
+    - "embedded"
+    - "processor"
+    - "GPU"
+    - "CPU"
+    - "signal processing"
+    - "circuit"
 
 news:
   sources: ["weibo", "zhihu", "36kr"]

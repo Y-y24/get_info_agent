@@ -3,7 +3,7 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 import requests
 from bs4 import BeautifulSoup
-from .base import Item, Fetcher
+from .base import Item, Fetcher, filter_by_keywords
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +84,9 @@ class ArxivFetcher(Fetcher):
 class HuggingFaceFetcher(Fetcher):
     URL = "https://huggingface.co/papers"
 
+    def __init__(self, keywords: list[str] | None = None):
+        self.keywords = keywords or []
+
     def fetch(self) -> list[Item]:
         try:
             resp = requests.get(self.URL, headers=HEADERS, timeout=15)
@@ -117,6 +120,7 @@ class HuggingFaceFetcher(Fetcher):
                 snippet=snippet[:300],
                 category="academic",
             ))
+        items = filter_by_keywords(items, self.keywords)
         logger.info(f"HuggingFace: fetched {len(items)} items")
         return items
 

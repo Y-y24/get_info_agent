@@ -1,7 +1,7 @@
 import logging
 import requests
 from bs4 import BeautifulSoup
-from .base import Item, Fetcher
+from .base import Item, Fetcher, filter_by_keywords
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +19,9 @@ TOP_N = 30
 class HackerNewsFetcher(Fetcher):
     TOP_STORIES_URL = "https://hacker-news.firebaseio.com/v0/topstories.json"
     ITEM_URL = "https://hacker-news.firebaseio.com/v0/item/{}.json"
+
+    def __init__(self, keywords: list[str] | None = None):
+        self.keywords = keywords or []
 
     def fetch(self) -> list[Item]:
         try:
@@ -53,12 +56,16 @@ class HackerNewsFetcher(Fetcher):
                 logger.debug(f"HN item {story_id} failed: {e}")
                 continue
 
+        items = filter_by_keywords(items, self.keywords)
         logger.info(f"HackerNews: fetched {len(items)} items")
         return items
 
 
 class GitHubTrendingFetcher(Fetcher):
     URL = "https://github.com/trending?since=daily"
+
+    def __init__(self, keywords: list[str] | None = None):
+        self.keywords = keywords or []
 
     def fetch(self) -> list[Item]:
         try:
@@ -87,12 +94,16 @@ class GitHubTrendingFetcher(Fetcher):
                 category="tech",
             ))
 
+        items = filter_by_keywords(items, self.keywords)
         logger.info(f"GitHub Trending: fetched {len(items)} items")
         return items
 
 
 class PapersWithCodeFetcher(Fetcher):
     URL = "https://paperswithcode.com/"
+
+    def __init__(self, keywords: list[str] | None = None):
+        self.keywords = keywords or []
 
     def fetch(self) -> list[Item]:
         try:
@@ -128,6 +139,7 @@ class PapersWithCodeFetcher(Fetcher):
                 category="tech",
             ))
 
+        items = filter_by_keywords(items, self.keywords)
         logger.info(f"Papers with Code: fetched {len(items)} items")
         return items
 

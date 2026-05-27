@@ -49,16 +49,18 @@ def main(config_path: str = "config.yaml") -> None:
                 logger.warning(f"News fetcher '{source_key}' error: {e}")
 
     # Fetch tech
+    tech_keywords = config["tech"].get("keywords", [])
     for source_key in config["tech"]["sources"]:
         fetcher_cls = ALL_TECH_FETCHERS.get(source_key)
         if fetcher_cls:
             try:
-                items = fetcher_cls().fetch()
+                items = fetcher_cls(keywords=tech_keywords).fetch()
                 all_items.extend(items)
             except Exception as e:
                 logger.warning(f"Tech fetcher '{source_key}' error: {e}")
 
     # Fetch academic
+    academic_keywords = config["academic"].get("keywords", [])
     arxiv_categories = config["academic"]["arxiv_categories"]
     if arxiv_categories:
         try:
@@ -68,7 +70,7 @@ def main(config_path: str = "config.yaml") -> None:
             logger.warning(f"ArXiv fetcher error: {e}")
 
     try:
-        items = HuggingFaceFetcher().fetch()
+        items = HuggingFaceFetcher(keywords=academic_keywords).fetch()
         all_items.extend(items)
     except Exception as e:
         logger.warning(f"HuggingFace fetcher error: {e}")
