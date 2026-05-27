@@ -11,8 +11,8 @@ news:
 email:
   smtp_host: "smtp.qq.com"
   smtp_port: 587
-  from_address: "your@qq.com"
-  to_address: "your@qq.com"
+  from_address: "3165086034@qq.com"
+  to_address: "3165086034@qq.com"
 
 deepseek:
   model: "deepseek-chat"
