@@ -46,21 +46,24 @@ def test_arxiv_fetcher_builds_correct_query_url():
     assert "sortBy=submittedDate" in url
 
 
-def test_huggingface_fetcher_parses_html():
-    html = """
-    <html><body>
-    <article class="flex flex-col">
-      <a href="/papers/paper1">Paper Title One</a>
-      <p>Abstract text for paper one about machine learning.</p>
-    </article>
-    <article class="flex flex-col">
-      <a href="/papers/paper2">Paper Title Two</a>
-      <p>Abstract text for paper two about NLP.</p>
-    </article>
-    </body></html>
-    """
+def test_huggingface_fetcher_parses_api_json():
     mock_resp = Mock()
-    mock_resp.text = html
+    mock_resp.json.return_value = [
+        {
+            "title": "Paper Title One",
+            "paper": {
+                "id": "paper1",
+                "summary": "Abstract text for paper one about machine learning.",
+            },
+        },
+        {
+            "title": "Paper Title Two",
+            "paper": {
+                "id": "paper2",
+                "summary": "Abstract text for paper two about NLP.",
+            },
+        },
+    ]
     mock_resp.raise_for_status = Mock()
 
     from fetchers.academic import HuggingFaceFetcher
@@ -68,9 +71,11 @@ def test_huggingface_fetcher_parses_html():
     with patch("requests.get", return_value=mock_resp):
         items = HuggingFaceFetcher().fetch()
 
-    assert len(items) >= 2
+    assert len(items) == 2
     assert all(i.source == "huggingface" for i in items)
     assert all(i.category == "academic" for i in items)
+    assert items[0].title == "Paper Title One"
+    assert "paper1" in items[0].url
 
 
 def test_arxiv_fetcher_empty_response():

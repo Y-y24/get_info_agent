@@ -50,11 +50,15 @@ def main(config_path: str = "config.yaml") -> None:
 
     # Fetch tech
     tech_keywords = config["tech"].get("keywords", [])
+    github_languages = config["tech"].get("github_languages", [])
     for source_key in config["tech"]["sources"]:
         fetcher_cls = ALL_TECH_FETCHERS.get(source_key)
         if fetcher_cls:
             try:
-                items = fetcher_cls(keywords=tech_keywords).fetch()
+                kwargs = {"keywords": tech_keywords}
+                if source_key == "github_trending" and github_languages:
+                    kwargs["languages"] = github_languages
+                items = fetcher_cls(**kwargs).fetch()
                 all_items.extend(items)
             except Exception as e:
                 logger.warning(f"Tech fetcher '{source_key}' error: {e}")

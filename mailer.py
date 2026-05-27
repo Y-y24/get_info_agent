@@ -17,9 +17,10 @@ CATEGORY_LABELS = {
 }
 
 FONT_PATHS = [
-    "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+    "/tmp/cjk-font.ttf",
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
     "C:/Windows/Fonts/msyh.ttc",
     "C:/Windows/Fonts/simsun.ttc",
 ]
@@ -82,7 +83,7 @@ class DigestPDF(FPDF):
         self.multi_cell(0, 5.5, item.snippet)
 
         self.set_x(self.l_margin)
-        self.set_font("Courier", "", 7)
+        self.set_font("cjk", "", 7)
         self.set_text_color(140, 140, 140)
         self.multi_cell(0, 4, item.url)
 

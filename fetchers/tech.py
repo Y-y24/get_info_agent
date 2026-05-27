@@ -64,12 +64,14 @@ class HackerNewsFetcher(Fetcher):
 class GitHubTrendingFetcher(Fetcher):
     URL = "https://github.com/trending?since=daily"
 
-    def __init__(self, keywords: list[str] | None = None):
+    def __init__(self, keywords: list[str] | None = None,
+                 languages: list[str] | None = None):
         self.keywords = keywords or []
+        self.languages = [l.lower() for l in (languages or [])]
 
     def fetch(self) -> list[Item]:
         try:
-            resp = requests.get(self.URL, headers=HEADERS, timeout=10)
+            resp = requests.get(self.URL, headers=HEADERS, timeout=15)
             resp.raise_for_status()
         except Exception as e:
             logger.warning(f"GitHub Trending fetch failed: {e}")
@@ -86,15 +88,20 @@ class GitHubTrendingFetcher(Fetcher):
             desc_el = article.select_one("p.col-9")
             description = desc_el.get_text(strip=True) if desc_el else ""
 
+            lang_el = article.select_one('[itemprop="programmingLanguage"]')
+            repo_lang = lang_el.get_text(strip=True) if lang_el else ""
+
             items.append(Item(
                 title=full_name,
                 url=f"https://github.com{href}",
                 source="github_trending",
-                snippet=description or full_name,
+                snippet=(description or full_name)
+                         + (f" [语言: {repo_lang}]" if repo_lang else ""),
                 category="tech",
             ))
 
-        items = filter_by_keywords(items, self.keywords)
+        items = filter_by_keywords(items, self.keywords,
+                                   languages=self.languages)
         logger.info(f"GitHub Trending: fetched {len(items)} items")
         return items
 

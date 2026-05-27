@@ -19,7 +19,21 @@ jobs:
           cache: "pip"
 
       - name: Install CJK font for PDF
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq fonts-wqy-zenhei
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-cjk
+          python -c "
+          from fontTools.ttLib import TTCollection
+          import os
+          for ttc_path in [
+              '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
+              '/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc',
+          ]:
+              if os.path.exists(ttc_path):
+                  ttc = TTCollection(ttc_path)
+                  ttc[0].save('/tmp/cjk-font.ttf')
+                  print(f'Extracted TTF from {ttc_path}')
+                  break
+          "
 
       - name: Install dependencies
         run: pip install -r requirements.txt

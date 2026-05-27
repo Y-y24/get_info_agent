@@ -25,23 +25,29 @@ class ArxivFetcher(Fetcher):
 
     def _build_url(self) -> str:
         cat_query = "+OR+".join(f"cat:{c}" for c in self.categories)
-        params = {
-            "search_query": cat_query,
-            "start": 0,
-            "max_results": 20,
-            "sortBy": "submittedDate",
-            "sortOrder": "descending",
-        }
-        return f"{ARXIV_API}?{urllib.parse.urlencode(params)}"
+        params = (
+            f"search_query={urllib.parse.quote(cat_query, safe=':+')}"
+            f"&start=0&max_results=20"
+            f"&sortBy=submittedDate&sortOrder=descending"
+        )
+        return f"{ARXIV_API}?{params}"
 
     def fetch(self) -> list[Item]:
         url = self._build_url()
-        try:
-            resp = requests.get(url, timeout=15)
-            resp.raise_for_status()
-        except Exception as e:
-            logger.warning(f"arXiv fetch failed: {e}")
-            return []
+        resp = None
+        for attempt in range(3):
+            try:
+                resp = requests.get(url, timeout=30)
+                resp.raise_for_status()
+                break
+            except Exception as e:
+                logger.warning(
+                    f"arXiv fetch attempt {attempt + 1} failed: {e}"
+                )
+                if attempt == 2:
+                    return []
+                import time
+                time.sleep(2)
 
         items = []
         try:
@@ -82,42 +88,33 @@ class ArxivFetcher(Fetcher):
 
 
 class HuggingFaceFetcher(Fetcher):
-    URL = "https://huggingface.co/papers"
+    URL = "https://huggingface.co/api/daily_papers"
 
     def __init__(self, keywords: list[str] | None = None):
         self.keywords = keywords or []
 
     def fetch(self) -> list[Item]:
         try:
-            resp = requests.get(self.URL, headers=HEADERS, timeout=15)
+            resp = requests.get(self.URL, headers=HEADERS, timeout=30)
             resp.raise_for_status()
+            papers = resp.json()
         except Exception as e:
             logger.warning(f"HuggingFace fetch failed: {e}")
             return []
 
-        soup = BeautifulSoup(resp.text, "lxml")
         items = []
-        for article in soup.select("article"):
-            link = article.select_one("a[href*='/papers/']")
-            if not link:
+        for paper in papers:
+            title = paper.get("title", "")
+            paper_id = paper.get("paper", {}).get("id", "")
+            summary = paper.get("paper", {}).get("summary", "")
+            if not title:
                 continue
-            title = link.get_text(strip=True)
-            href = link.get("href", "")
-            abstract_el = article.select_one("p")
-            snippet = (
-                abstract_el.get_text(strip=True) if abstract_el else title
-            )
-
-            url = (
-                f"https://huggingface.co{href}"
-                if href.startswith("/")
-                else href
-            )
+            url = f"https://huggingface.co/papers/{paper_id}" if paper_id else ""
             items.append(Item(
                 title=title,
                 url=url,
                 source="huggingface",
-                snippet=snippet[:300],
+                snippet=summary[:300] if summary else title,
                 category="academic",
             ))
         items = filter_by_keywords(items, self.keywords)

@@ -8,9 +8,10 @@ DEFAULTS = {
     },
     "tech": {
         "sources": ["hackernews", "github_trending", "paperswithcode"],
+        "keywords": [],
     },
     "news": {
-        "sources": ["weibo", "zhihu", "36kr"],
+        "sources": ["weibo", "zhihu", "36kr", "baidu"],
     },
     "email": {
         "smtp_host": "smtp.qq.com",
