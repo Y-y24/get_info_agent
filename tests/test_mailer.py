@@ -1,7 +1,7 @@
 import datetime
 from unittest.mock import patch, Mock
 from fetchers.base import Item
-from mailer import build_html, send_mail
+from mailer import build_pdf, send_mail
 
 
 def make_item(category, title, snippet, source="test"):
@@ -14,7 +14,7 @@ def make_item(category, title, snippet, source="test"):
     )
 
 
-def test_build_html_has_correct_structure():
+def test_build_pdf_returns_bytes():
     items = [
         make_item("news", "新闻标题1", "AI摘要内容1"),
         make_item("news", "新闻标题2", "AI摘要内容2"),
@@ -23,38 +23,21 @@ def test_build_html_has_correct_structure():
     ]
     today = datetime.date(2026, 5, 26)
 
-    html = build_html(items, today)
+    pdf_bytes = build_pdf(items, today)
 
-    assert "2026" in html
-    assert "5月26日" in html
-    assert "新闻热点" in html
-    assert "科技前沿" in html
-    assert "学术前沿" in html
-    assert "新闻标题1" in html
-    assert "AI摘要内容1" in html
-    assert 'href="http://example.com"' in html
+    assert isinstance(pdf_bytes, (bytes, bytearray))
+    assert len(pdf_bytes) > 100
+    assert pdf_bytes[:4] == b"%PDF"
 
 
-def test_build_html_empty_categories_omitted():
-    items = [
-        make_item("news", "唯一新闻", "摘要"),
-    ]
+def test_build_pdf_empty_items():
     today = datetime.date(2026, 5, 26)
-
-    html = build_html(items, today)
-
-    assert "新闻热点" in html
-    assert "科技前沿" not in html
-    assert "学术前沿" not in html
+    pdf_bytes = build_pdf([], today)
+    assert isinstance(pdf_bytes, (bytes, bytearray))
+    assert len(pdf_bytes) > 0
 
 
-def test_build_html_empty_items():
-    today = datetime.date(2026, 5, 26)
-    html = build_html([], today)
-    assert "暂无资讯" in html
-
-
-def test_send_mail_calls_smtp():
+def test_send_mail_attaches_pdf():
     items = [make_item("news", "测试标题", "测试摘要")]
     email_config = {
         "smtp_host": "smtp.qq.com",

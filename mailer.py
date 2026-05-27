@@ -1,91 +1,119 @@
 import datetime
 import logging
+import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
+from fpdf import FPDF
 from fetchers.base import Item
 
 logger = logging.getLogger(__name__)
 
 CATEGORY_LABELS = {
-    "news": "\U0001f525 新闻热点",
-    "tech": "\U0001f4bb 科技前沿",
-    "academic": "\U0001f4da 学术前沿",
+    "news": "社会热点",
+    "tech": "科技前沿",
+    "academic": "学术前沿",
 }
 
-CSS = """
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI',
-       'PingFang SC', 'Microsoft YaHei', sans-serif;
-       max-width: 720px; margin: 0 auto; padding: 20px;
-       background: #f5f5f5; }
-.container { background: #fff; border-radius: 8px; padding: 24px;
-             box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-.header { text-align: center; padding-bottom: 16px;
-          border-bottom: 1px solid #eee; margin-bottom: 20px; }
-.header h1 { color: #1a1a1a; font-size: 22px; margin: 0 0 4px 0; }
-.header .date { color: #888; font-size: 14px; }
-.section { margin-bottom: 24px; }
-.section h2 { color: #333; font-size: 17px; border-left: 3px solid #1677ff;
-              padding-left: 10px; margin: 0 0 12px 0; }
-.item { padding: 8px 0; border-bottom: 1px dashed #f0f0f0; }
-.item:last-child { border-bottom: none; }
-.item a { color: #1677ff; text-decoration: none; font-weight: 500; }
-.item a:hover { text-decoration: underline; }
-.item .summary { color: #555; font-size: 13px; margin-top: 2px; }
-.item .source { color: #aaa; font-size: 11px; }
-.footer { text-align: center; color: #bbb; font-size: 12px;
-          margin-top: 24px; padding-top: 16px; border-top: 1px solid #eee; }
-"""
+FONT_PATHS = [
+    "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+    "C:/Windows/Fonts/msyh.ttc",
+    "C:/Windows/Fonts/simsun.ttc",
+]
 
 
-def build_html(items: list[Item], date: datetime.date) -> str:
+def _find_cjk_font() -> str:
+    for p in FONT_PATHS:
+        if os.path.exists(p):
+            return p
+    logger.warning("No CJK font found, PDF Chinese text may not render")
+    return "Helvetica"
+
+
+class DigestPDF(FPDF):
+    def __init__(self):
+        super().__init__("P", "mm", "A4")
+        self.font_path = _find_cjk_font()
+        self.add_font("cjk", fname=self.font_path)
+        self.set_auto_page_break(True, 15)
+
+    def header(self):
+        if self.page_no() == 1:
+            self.set_font("cjk", "", 22)
+            self.cell(0, 12, "每日资讯摘要", align="C", new_x="LMARGIN", new_y="NEXT")
+            today = datetime.date.today()
+            date_str = f"{today.year}年{today.month}月{today.day}日"
+            self.set_font("cjk", "", 10)
+            self.set_text_color(120, 120, 120)
+            self.cell(0, 8, date_str, align="C", new_x="LMARGIN", new_y="NEXT")
+            self.ln(6)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font("cjk", "", 8)
+        self.set_text_color(180, 180, 180)
+        self.cell(0, 10, "由 GitHub Actions 自动生成", align="C")
+
+    def add_section(self, label: str, count: int):
+        self.ln(4)
+        self.set_font("cjk", "", 15)
+        self.set_text_color(30, 30, 30)
+        self.cell(0, 8, f"{label}  ({count}条)", new_x="LMARGIN", new_y="NEXT")
+        self.set_draw_color(22, 119, 255)
+        self.set_line_width(0.6)
+        line_y = self.get_y()
+        self.line(10, line_y, 200, line_y)
+        self.ln(4)
+
+    def add_item(self, item: Item):
+        self.set_font("cjk", "", 11)
+        self.set_text_color(22, 119, 255)
+        self.multi_cell(0, 6, item.title)
+
+        self.set_font("cjk", "", 7)
+        self.set_text_color(160, 160, 160)
+        self.cell(0, 4, f"来源: {item.source}", new_x="LMARGIN", new_y="NEXT")
+
+        self.set_font("cjk", "", 9)
+        self.set_text_color(60, 60, 60)
+        self.multi_cell(0, 5.5, item.snippet)
+
+        self.set_x(self.l_margin)
+        self.set_font("Courier", "", 7)
+        self.set_text_color(140, 140, 140)
+        self.multi_cell(0, 4, item.url)
+
+        self.ln(2)
+
+
+def build_pdf(items: list[Item], date: datetime.date) -> bytes:
     grouped: dict[str, list[Item]] = {"news": [], "tech": [], "academic": []}
     for item in items:
         if item.category in grouped:
             grouped[item.category].append(item)
 
-    date_str = f"{date.year}年{date.month}月{date.day}日"
+    pdf = DigestPDF()
+    pdf.add_page()
 
-    sections_html = ""
-    for category, label in CATEGORY_LABELS.items():
+    has_content = False
+    for category in ["news", "tech", "academic"]:
         cat_items = grouped.get(category, [])
         if not cat_items:
             continue
-        items_html = ""
+        has_content = True
+        pdf.add_section(CATEGORY_LABELS[category], len(cat_items))
         for item in cat_items:
-            items_html += (
-                f'<div class="item">'
-                f'<a href="{item.url}">{item.title}</a>'
-                f'<span class="source"> [{item.source}]</span>'
-                f'<div class="summary">{item.snippet}</div>'
-                f'</div>\n'
-            )
-        count = len(cat_items)
-        sections_html += (
-            f'<div class="section">'
-            f'<h2>{label} ({count}条)</h2>'
-            f'{items_html}'
-            f'</div>\n'
-        )
+            pdf.add_item(item)
 
-    if not sections_html:
-        sections_html = '<p style="text-align:center;color:#888;">今日暂无资讯</p>'
+    if not has_content:
+        pdf.set_font("cjk", "", 12)
+        pdf.set_text_color(150, 150, 150)
+        pdf.cell(0, 10, "今日暂无资讯", align="C")
 
-    return f"""<!DOCTYPE html>
-<html lang="zh-CN">
-<head><meta charset="UTF-8"></head>
-<body>
-<div class="container">
-  <div class="header">
-    <h1>\U0001f4f0 每日资讯摘要</h1>
-    <div class="date">{date_str}</div>
-  </div>
-  {sections_html}
-  <div class="footer">由 GitHub Actions 自动生成 | {date_str}</div>
-</div>
-<style>{CSS}</style>
-</body>
-</html>"""
+    return pdf.output()
 
 
 def send_mail(
@@ -94,13 +122,26 @@ def send_mail(
     password: str,
 ) -> None:
     today = datetime.date.today()
-    html = build_html(items, today)
+    pdf_bytes = build_pdf(items, today)
 
-    msg = MIMEMultipart("alternative")
+    msg = MIMEMultipart()
     msg["Subject"] = f"每日资讯摘要 | {today.isoformat()}"
     msg["From"] = email_config["from_address"]
     msg["To"] = email_config["to_address"]
-    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    body = MIMEText(
+        f"今日资讯摘要 ({len(items)} 条)，详见附件 PDF。\n\n"
+        f"由 GitHub Actions 自动生成 | {today.isoformat()}",
+        "plain", "utf-8",
+    )
+    msg.attach(body)
+
+    pdf_attachment = MIMEApplication(pdf_bytes, _subtype="pdf")
+    pdf_attachment.add_header(
+        "Content-Disposition", "attachment",
+        filename=f"daily-digest-{today.isoformat()}.pdf",
+    )
+    msg.attach(pdf_attachment)
 
     smtp_host = email_config["smtp_host"]
     smtp_port = email_config["smtp_port"]
@@ -112,5 +153,6 @@ def send_mail(
         server.send_message(msg)
 
     logger.info(
-        f"Email sent: {len(items)} items to {email_config['to_address']}"
+        f"Email sent: PDF ({len(pdf_bytes)} bytes, {len(items)} items) "
+        f"to {email_config['to_address']}"
     )
